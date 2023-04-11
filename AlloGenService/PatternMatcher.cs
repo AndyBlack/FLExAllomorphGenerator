@@ -17,6 +17,7 @@ namespace SIL.AlloGenService
     {
         //public Pattern Pattern { get; set; }
         LcmCache Cache { get; set; }
+		public AllomorphGenerators AlloGens { get; set; }
         public IEnumerable<ILexEntry> AllEntries { get; set; }
         public IEnumerable<ILexEntry> EntriesWithNoAllomorphs { get; set; }
         public IEnumerable<ILexEntry> MultiAllomorphEntries { get; set; }
@@ -25,13 +26,14 @@ namespace SIL.AlloGenService
         public string ErrorMessage { get; set; } = "";
         Dictionary<Dialect, int> dictWritingSystems = new Dictionary<Dialect, int>();
 
-        public PatternMatcher(LcmCache cache, Dictionary<Dialect, int> dictWS)
+        public PatternMatcher(LcmCache cache, Dictionary<Dialect, int> dictWS, AllomorphGenerators alloGens)
         {
             Cache = cache;
             dictWritingSystems = dictWS;
             AllEntries = Cache.LanguageProject.LexDbOA.Entries;
             EntriesWithNoAllomorphs = AllEntries.Where(e => e.AlternateFormsOS.Count == 0);
             MultiAllomorphEntries = AllEntries.Where(e => e.AlternateFormsOS.Count > 0);
+			AlloGens = alloGens;
         }
 
         public IEnumerable<ILexEntry> MatchMorphTypes(IEnumerable<ILexEntry> lexEntries, Pattern pattern)
@@ -135,7 +137,14 @@ namespace SIL.AlloGenService
             lexEntriesThatMatch = MatchMorphTypes(lexEntriesThatMatch, pattern);
 
             AlloGenModel.Action action = operation.Action;
-            Replacer replacer = new Replacer(action.ReplaceOps);
+			List<Replace> replaceOps = new List<Replace>();
+			foreach (string opRef in action.ReplaceOpRefs)
+			{
+				Replace replace = AlloGens.ReplaceOperations.FirstOrDefault(ro => ro.Guid == opRef);
+				if (replace != null)
+					replaceOps.Add(replace);
+			}
+            Replacer replacer = new Replacer(replaceOps);
             IList<ILexEntry> lexEntriesWithAllosThatDoNotMatch = new List<ILexEntry>();
             foreach (ILexEntry entry in lexEntriesThatMatch)
             {
